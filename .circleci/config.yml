@@ -1,8 +1,27 @@
 version: 2.1
 orbs:
+  python: circleci/python@2.0.3
+  aws-cli: circleci/aws-cli@5.1
   ansible-playbook: orbss/ansible-playbook@0.0.5
 jobs:
-  build: 
+  cfn-lint:
+    executor: python/default
+    steps:
+      - checkout
+      - run: pip install cfn-lint
+      - run:
+          name: run cfn-lint
+          command: |
+            cfn-lint -i W3002 -t cloudformation/*.yml
+  cfn-deploy:
+    executor: aws-cli/default
+    steps:
+      - checkout
+      - aws-cli/setup:
+          aws_access_key_id: AWS_ACCESS_KEY_ID
+          aws_secret_access_key: AWS_SECRET_ACCESS_KEY
+          region: AWS_DEFAULT_REGION
+  ansible-deploy: 
     executor: ansible-playbook/default
     steps:
       - checkout
@@ -18,4 +37,10 @@ workflows:
   version: 2
   ansibledeploy:
     jobs:
-      - build
+      - cfn-lint
+      - cfn-deploy
+          requires:
+            - cfn-lint
+      - ansible-deploy
+          requires:
+            - cfn-deploy
